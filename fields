@@ -1,0 +1,90 @@
+#!/bin/bash
+
+## fields: show the header line of a structured data file (TSV /
+## CSV) and number the fields. Specify the delimiter, or let the
+## script make its own best guess.
+##
+## by Eric Nystrom, http://ericnystrom.org
+##   version: October 30, 2018
+##
+##   license: MIT License
+
+while getopts "ctps" opt; do
+   case $opt in
+    c)
+	## CSV file. No attempt is made here to handle complicated ones with quotations, etc.
+	delim=","
+	;;
+    t)
+	## TSV (tab-separated) file.
+	delim="\t"
+	;;
+    p)
+	## Pipe (|) delimited file
+	delim="|"
+	;;
+    s)
+	## Space-delimited file
+	delim=" "
+	;;
+   \?)
+        echo "Invalid option: -$OPTARG" 
+        exit 1
+        ;;
+   esac
+done
+
+## Need this to clear off the options, so $1 is as it should be, etc.
+shift $(($OPTIND - 1)) 
+
+## Check for empty command line; have to do this after the getops stuff
+if [ "a$1" == "a" ]
+then
+  echo "Usage:  $( basename $0 ) [ options ] FILE"
+  echo " "
+  echo "Options:"
+  echo "  -c   : Comma-separated file"
+  echo "  -t   : TAB-separated file"
+  echo "  -p   : Pipe (|) separated file"
+  echo "  -s   : Space-separated file"
+  exit 2
+fi
+
+## capture file name from command line, test if it's a file
+file="$1"
+
+if [ ! -f "$file" ]; then
+    echo "Usage:  $( basename $0 ) [ options ] FILE"
+    echo " "
+    echo "Options:"
+    echo "  -c   : Comma-separated file"
+    echo "  -t   : TAB-separated file"
+    echo "  -p   : Pipe (|) separated file"
+    echo "  -s   : Space-separated file"
+    exit 2
+fi
+
+## Grab the first line
+header=$(head -n1 "$file")
+
+## If delimiter wasn't set on the command line, try to guess what kind
+## of file it is. Preferred order: pipe, tab, comma; space is set if
+## nothing else seems viable. Grep returns zero if there's a
+## match. Note funny-looking ANSI C quoting used for TAB.
+
+if [ "a$delim" == "a" ]; then
+
+    if (echo $header | grep -q '|'); then
+	delim="|"
+    elif (echo $header | grep -q $'\t'); then
+	delim="\t"
+    elif (echo $header | grep -q ','); then
+	delim=","
+    else
+	delim=" "
+    fi
+fi
+
+## Produce the output
+
+echo $header | tr "$delim" '\n' | nl
